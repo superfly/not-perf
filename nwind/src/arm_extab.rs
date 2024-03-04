@@ -1,3 +1,4 @@
+use std::num::NonZeroUsize;
 use std::slice;
 use std::mem;
 use std::fmt;
@@ -379,9 +380,6 @@ impl< I: Iterator< Item = u8 > > Iterator for Decoder< I > {
             let nth_reg = opcode & EXTAB_OP_SET_VSP_ARG_MASK;
             if nth_reg == 0b10011101 {
                 // Reserved for ARM register-to-register moves.
-                return Some( Err( DecodeError::ReservedInstruction ) );
-            } else if nth_reg == 0b10011111 {
-                // Reserved for MMX register-to-register moves.
                 return Some( Err( DecodeError::ReservedInstruction ) );
             }
 
@@ -809,7 +807,7 @@ pub struct UnwindInfoCache {
 impl UnwindInfoCache {
     pub fn new() -> Self {
         UnwindInfoCache {
-            cache: LruCache::new( 4096 )
+            cache: LruCache::new( unsafe { NonZeroUsize::new_unchecked( 4096 ) } )
         }
     }
 
@@ -1089,7 +1087,7 @@ pub fn unwind< M >(
 
     {
         let mut rules = Vec::new();
-        if unwind_cache.cache.len() == unwind_cache.cache.cap() {
+        if unwind_cache.cache.len() == unwind_cache.cache.cap().get() {
             rules = unwind_cache.cache.pop_lru().map( |(_, old)| old.rules ).unwrap();
             rules.clear();
         } else {

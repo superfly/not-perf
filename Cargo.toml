@@ -17,7 +17,7 @@ string-interner = "0.7"
 serde = "1"
 serde_json = "1"
 serde_derive = "1"
-structopt = "0.2"
+structopt = "0.3"
 inferno = { version = "0.9", default-features = false, optional = true }
 
 proc-maps = { version = "0.1", path = "proc-maps" }
@@ -31,7 +31,7 @@ default-features = false
 
 [dev-dependencies]
 quickcheck = { version = "0.9", default-features = false, features = ["log"] }
-criterion = "0.3"
+criterion = "0.5"
 env_logger = "0.8"
 
 [profile.release]

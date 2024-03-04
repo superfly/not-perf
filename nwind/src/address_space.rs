@@ -1,4 +1,5 @@
 use std::mem;
+use std::num::NonZeroUsize;
 use std::sync::Arc;
 use std::collections::{HashMap, HashSet};
 use std::ops::Range;
@@ -327,7 +328,7 @@ impl SymbolDecodeCache {
     }
 
     pub fn put( &mut self, address: u64, raw_name: String, name: Option< String > ) {
-        let cache = self.cache.get_or_insert_with( || LruCache::new( 2000 ) );
+        let cache = self.cache.get_or_insert_with( || LruCache::new( unsafe { NonZeroUsize::new_unchecked(2000) } ) );
         cache.put( address, (raw_name, name) );
     }
 }
