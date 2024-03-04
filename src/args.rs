@@ -5,55 +5,55 @@ use perf_event_open::EventSource;
 
 use crate::cmd_collate::CollateFormat;
 
-fn parse_event_source( source: &str ) -> EventSource {
+fn parse_event_source(source: &str) -> EventSource {
     match source {
         "hw_cpu_cycles" => EventSource::HwCpuCycles,
         "hw_ref_cpu_cycles" => EventSource::HwRefCpuCycles,
         "sw_cpu_clock" => EventSource::SwCpuClock,
         "sw_page_faults" => EventSource::SwPageFaults,
         "sw_dummy" => EventSource::SwDummy,
-        _ => unreachable!()
+        _ => unreachable!(),
     }
 }
 
-fn parse_collate_format( format: &str ) -> CollateFormat {
+fn parse_collate_format(format: &str) -> CollateFormat {
     match format {
         "collapsed" => CollateFormat::Collapsed,
         "perf-like" => CollateFormat::PerfLike,
-        _ => unreachable!()
+        _ => unreachable!(),
     }
 }
 
-fn try_parse_period( period: &str ) -> Result< u64, <u64 as std::str::FromStr>::Err > {
-    let period = if period.ends_with( "ms" ) {
-        period[ 0..period.len() - 2 ].parse::< u64 >()? * 1000_000
-    } else if period.ends_with( "us" ) {
-        period[ 0..period.len() - 2 ].parse::< u64 >()? * 1000
-    } else if period.ends_with( "ns" ) {
-        period[ 0..period.len() - 2 ].parse::< u64 >()?
-    } else if period.ends_with( "s" ) {
-        period[ 0..period.len() - 1 ].parse::< u64 >()? * 1000_000_000
+fn try_parse_period(period: &str) -> Result<u64, <u64 as std::str::FromStr>::Err> {
+    let period = if period.ends_with("ms") {
+        period[0..period.len() - 2].parse::<u64>()? * 1000_000
+    } else if period.ends_with("us") {
+        period[0..period.len() - 2].parse::<u64>()? * 1000
+    } else if period.ends_with("ns") {
+        period[0..period.len() - 2].parse::<u64>()?
+    } else if period.ends_with("s") {
+        period[0..period.len() - 1].parse::<u64>()? * 1000_000_000
     } else {
-        period.parse::< u64 >()? * 1000_000_000
+        period.parse::<u64>()? * 1000_000_000
     };
 
-    Ok( period )
+    Ok(period)
 }
 
-fn parse_period( period: &str ) -> u64 {
-    match try_parse_period( period ) {
-        Ok( period ) => period,
-        Err( _ ) => {
-            eprintln!( "error: invalid '--period' specified" );
-            std::process::exit( 1 );
+fn parse_period(period: &str) -> u64 {
+    match try_parse_period(period) {
+        Ok(period) => period,
+        Err(_) => {
+            eprintln!("error: invalid '--period' specified");
+            std::process::exit(1);
         }
     }
 }
 
 pub enum TargetProcess {
-    ByPid( u32 ),
-    ByName( String ),
-    ByNameWaiting( String, u64 )
+    ByPid(u32),
+    ByName(String),
+    ByNameWaiting(String, u64),
 }
 
 #[derive(StructOpt, Clone, Debug)]
@@ -67,7 +67,7 @@ pub struct ProcessFilter {
             "process"
         ]"#)
     )]
-    pid: Option< u32 >,
+    pub pid: Option<u32>,
     /// Profiles a process with a given name (conflicts with --pid)
     #[structopt(
         long,
@@ -76,7 +76,7 @@ pub struct ProcessFilter {
             "pid"
         ]"#)
     )]
-    process: Option< String >,
+    pub process: Option<String>,
     /// Will wait for the profiled process to appear
     #[structopt(
         long,
@@ -85,26 +85,23 @@ pub struct ProcessFilter {
             "pid"
         "#)
     )]
-    wait: bool,
+    pub wait: bool,
     /// Specifies the number of seconds which the profiler should wait
     /// for the process to appear; makes sense only when used with the `--wait` option
-    #[structopt(
-        long,
-        default_value = "60"
-    )]
-    wait_timeout: u32,
+    #[structopt(long, default_value = "60")]
+    pub wait_timeout: u32,
 }
 
-impl From< ProcessFilter > for TargetProcess {
-    fn from( args: ProcessFilter ) -> Self {
-        if let Some( process ) = args.process {
+impl From<ProcessFilter> for TargetProcess {
+    fn from(args: ProcessFilter) -> Self {
+        if let Some(process) = args.process {
             if args.wait {
-                TargetProcess::ByNameWaiting( process, args.wait_timeout as u64 )
+                TargetProcess::ByNameWaiting(process, args.wait_timeout as u64)
             } else {
-                TargetProcess::ByName( process )
+                TargetProcess::ByName(process)
             }
-        } else if let Some( pid ) = args.pid {
-            TargetProcess::ByPid( pid )
+        } else if let Some(pid) = args.pid {
+            TargetProcess::ByPid(pid)
         } else {
             unreachable!();
         }
@@ -115,7 +112,7 @@ impl From< ProcessFilter > for TargetProcess {
 pub enum Granularity {
     Address,
     Function,
-    Line
+    Line,
 }
 
 impl Default for Granularity {
@@ -124,12 +121,12 @@ impl Default for Granularity {
     }
 }
 
-fn parse_granularity( value: &str ) -> Granularity {
+fn parse_granularity(value: &str) -> Granularity {
     match value {
         "address" => Granularity::Address,
         "function" => Granularity::Function,
         "line" => Granularity::Line,
-        _ => unreachable!()
+        _ => unreachable!(),
     }
 }
 
@@ -138,15 +135,15 @@ fn parse_granularity( value: &str ) -> Granularity {
 pub struct GenericProfilerArgs {
     /// The file to which the profiling data will be written
     #[structopt(long, short = "o", parse(from_os_str))]
-    pub output: Option< OsString >,
+    pub output: Option<OsString>,
 
     /// The number of samples to gather; unlimited by default
     #[structopt(long)]
-    pub sample_count: Option< u64 >,
+    pub sample_count: Option<u64>,
 
     /// Determines for how many seconds the measurements will be gathered
     #[structopt(long, short = "l")]
-    pub time_limit: Option< u64 >,
+    pub time_limit: Option<u64>,
 
     /// Prevents anything in the profiler's address space from being swapped out; might increase memory usage significantly
     #[structopt(long)]
@@ -160,7 +157,7 @@ pub struct GenericProfilerArgs {
     pub panic_on_partial_backtrace: bool,
 
     #[structopt(flatten)]
-    pub process_filter: ProcessFilter
+    pub process_filter: ProcessFilter,
 }
 
 #[derive(StructOpt, Debug)]
@@ -183,7 +180,7 @@ pub struct RecordArgs {
             "sw_dummy"
         ]"#)
     )]
-    pub event_source: Option< EventSource >,
+    pub event_source: Option<EventSource>,
 
     /// Size of the gathered stack payloads (in bytes)
     #[structopt(long, default_value = "64512")]
@@ -194,7 +191,7 @@ pub struct RecordArgs {
     pub discard_all: bool,
 
     #[structopt(flatten)]
-    pub profiler_args: GenericProfilerArgs
+    pub profiler_args: GenericProfilerArgs,
 }
 
 #[derive(StructOpt, Debug)]
@@ -202,20 +199,20 @@ pub struct RecordArgs {
 pub struct SharedCollationArgs {
     /// A file or directory with extra debugging symbols; can be specified multiple times
     #[structopt(long, short = "d", parse(from_os_str))]
-    pub debug_symbols: Vec< OsString >,
+    pub debug_symbols: Vec<OsString>,
 
     /// A path to a jitdump file
     #[structopt(long, parse(from_os_str))]
-    pub jitdump: Option< OsString >,
+    pub jitdump: Option<OsString>,
 
     #[structopt(long, raw(hidden = "true"))]
-    pub force_stack_size: Option< u32 >,
+    pub force_stack_size: Option<u32>,
 
     #[structopt(long, raw(hidden = "true"))]
-    pub omit: Vec< String >,
+    pub omit: Vec<String>,
 
     #[structopt(long, raw(hidden = "true"))]
-    pub only_sample: Option< u64 >,
+    pub only_sample: Option<u64>,
 
     /// Completely ignores kernel callstacks
     #[structopt(long)]
@@ -223,15 +220,15 @@ pub struct SharedCollationArgs {
 
     /// Only process the samples generated *after* this many seconds after launch.
     #[structopt(long)]
-    pub from: Option< String >,
+    pub from: Option<String>,
 
     /// Only process the samples generated *before* this many seconds after launch.
     #[structopt(long)]
-    pub to: Option< String >,
+    pub to: Option<String>,
 
     /// The input file to use; record it with the `record` subcommand
     #[structopt(parse(from_os_str))]
-    pub input: OsString
+    pub input: OsString,
 }
 
 #[derive(StructOpt, Debug)]
@@ -239,7 +236,7 @@ pub struct SharedCollationArgs {
 pub struct ArgMergeThreads {
     /// Merge callstacks from all threads
     #[structopt(long)]
-    pub merge_threads: bool
+    pub merge_threads: bool,
 }
 
 #[derive(StructOpt, Debug)]
@@ -256,7 +253,7 @@ pub struct ArgGranularity {
             "line"
         ]"#)
     )]
-    pub granularity: Granularity
+    pub granularity: Granularity,
 }
 
 #[cfg(feature = "inferno")]
@@ -274,7 +271,7 @@ pub struct FlamegraphArgs {
 
     /// The file to which the flamegraph will be written to (instead of the stdout)
     #[structopt(long, short = "o", parse(from_os_str))]
-    pub output: Option< OsString >
+    pub output: Option<OsString>,
 }
 
 #[derive(StructOpt, Debug)]
@@ -285,11 +282,11 @@ pub struct CsvArgs {
 
     /// The sampling interval, in seconds
     #[structopt(long, short = "t")]
-    pub sampling_interval: Option< f64 >,
+    pub sampling_interval: Option<f64>,
 
     /// The file to which the CSV will be written to (instead of the stdout)
     #[structopt(long, short = "o", parse(from_os_str))]
-    pub output: Option< OsString >
+    pub output: Option<OsString>,
 }
 
 #[derive(StructOpt, Debug)]
@@ -306,11 +303,11 @@ pub struct TraceEventsArgs {
 
     /// The sampling period; samples within one sampling period will be merged together
     #[structopt(long, short = "p", parse(from_str = "parse_period"))]
-    pub period: Option< u64 >,
+    pub period: Option<u64>,
 
     /// The file to which the trace events will be written to
     #[structopt(long, short = "o", parse(from_os_str))]
-    pub output: OsString
+    pub output: OsString,
 }
 
 #[derive(StructOpt, Debug)]
@@ -335,7 +332,7 @@ pub struct CollateArgs {
             "perf-like"
         ]"#)
     )]
-    pub format: CollateFormat
+    pub format: CollateFormat,
 }
 
 #[derive(StructOpt, Debug)]
@@ -343,7 +340,7 @@ pub struct CollateArgs {
 pub struct MetadataArgs {
     /// The input file to use; record it with the `record` subcommand
     #[structopt(parse(from_os_str))]
-    pub input: OsString
+    pub input: OsString,
 }
 
 #[derive(StructOpt, Debug)]
@@ -354,26 +351,26 @@ pub struct MetadataArgs {
 pub enum Opt {
     /// Records profiling information with perf_event_open
     #[structopt(name = "record")]
-    Record( RecordArgs ),
+    Record(RecordArgs),
 
     /// Emits an SVG flamegraph
     #[cfg(feature = "inferno")]
     #[structopt(name = "flamegraph")]
-    Flamegraph( FlamegraphArgs ),
+    Flamegraph(FlamegraphArgs),
 
     /// Emits a CSV file
     #[structopt(name = "csv")]
-    Csv( CsvArgs ),
+    Csv(CsvArgs),
 
     /// Emits trace events for use with Chromium's Trace Viewer
     #[structopt(name = "trace-events")]
-    TraceEvents( TraceEventsArgs ),
+    TraceEvents(TraceEventsArgs),
 
     /// Emits collated stack traces for use with Brendan Gregg's flamegraph script
     #[structopt(name = "collate")]
-    Collate( CollateArgs ),
+    Collate(CollateArgs),
 
     /// Outputs rudimentary JSON-formatted metadata
     #[structopt(name = "metadata")]
-    Metadata( MetadataArgs )
+    Metadata(MetadataArgs),
 }
