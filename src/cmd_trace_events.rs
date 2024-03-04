@@ -416,7 +416,11 @@ pub fn main( args: args::TraceEventsArgs ) -> Result< (), Box< dyn Error > > {
                 _ => {}
             }
 
-            write!( stream, ",{{" )?;
+            if stream.buffer().last() == Some(&b'[') {
+                write!( stream, "{{" )?;
+            } else {
+                write!( stream, ",{{" )?;
+            }
             write!( stream, "\"name\": " )?;
             let mut name = String::new();
             write_frame( &state, &interner, &mut name, &event.frame );
